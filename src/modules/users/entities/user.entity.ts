@@ -1,10 +1,12 @@
 import {
+  BeforeInsert,
   Column,
   CreateDateColumn,
   Entity,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 
 @Entity({ name: 'users' })
 export class User {
@@ -47,5 +49,11 @@ export class User {
     user.password = password;
     user.name = name;
     return user;
+  }
+
+  @BeforeInsert()
+  async hashPassword() {
+    const salt = await bcrypt.genSalt(12);
+    this.password = await bcrypt.hash(this.password, salt);
   }
 }
