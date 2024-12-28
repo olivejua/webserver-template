@@ -35,25 +35,11 @@ export class User {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  static from({
-    email,
-    password,
-    name,
-  }: {
-    email: string;
-    password: string;
-    name: string;
-  }) {
+  static from(email: string, password: string, name: string) {
     const user = new User();
     user.email = email;
     user.password = password;
     user.name = name;
     return user;
-  }
-
-  @BeforeInsert()
-  async hashPassword() {
-    const salt = await bcrypt.genSalt(12);
-    this.password = await bcrypt.hash(this.password, salt);
   }
 }
