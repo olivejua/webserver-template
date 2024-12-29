@@ -12,6 +12,7 @@ $ npm install @nestjs/typeorm
 $ npm install class-validator class-transformer
 $ npm install @nestjs/passport passport passport-local @nestjs/jwt bcrypt
 $ npm install --save-dev @types/bcrypt
+$ npm install ioredis
 ```
 
 - docker compose 세팅
@@ -48,3 +49,39 @@ $ mau deploy
 ```
 
 With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+
+
+## 프로젝트 구조
+```text
+src/
+├── main.ts          # 애플리케이션 진입점
+├── app.module.ts    # 루트 모듈
+├── app.controller.ts # 메인 컨트롤러
+├── app.service.ts   # 메인 서비스
+├── modules/         # 모듈별 디렉토리
+│   ├── users/
+│   │   ├── users.module.ts
+│   │   ├── users.controller.ts
+│   │   ├── users.service.ts
+│   │   ├── users.repository.ts
+│   │   ├── dto/
+│   │   │   ├── create-user.dto.ts
+│   │   │   ├── update-user.dto.ts
+│   │   ├── entities/
+│   │   │   ├── user.entity.ts
+│   ├── auth/
+│   │   ├── auth.module.ts
+│   │   ├── auth.controller.ts
+│   │   ├── auth.service.ts
+│   │   ├── auth.guard.ts
+│   │   ├── jwt.strategy.ts
+├── common/         # 공통 유틸리티 및 데코레이터
+│   ├── filters/    # 예외 필터
+│   ├── interceptors/ # 인터셉터
+│   ├── pipes/      # 파이프
+│   ├── decorators/ # 커스텀 데코레이터
+│   ├── guards/     # 공통 가드
+├── config/         # 환경 변수 및 설정
+├── test/           # 테스트 코드
+└── assets/         # 정적 파일 및 리소스
+```

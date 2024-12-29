@@ -1,7 +1,6 @@
 services:
-  db:
+  mysql:
     image: mysql:8.0
-    container_name: web-server-template-mysql
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
@@ -12,5 +11,11 @@ services:
     volumes:
       - ./db/scripts/:/docker-entrypoint-initdb.d
       - ./db/conf/:/etc/mysql/conf.d
+    env_file:
+      - .env
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
     env_file:
       - .env
