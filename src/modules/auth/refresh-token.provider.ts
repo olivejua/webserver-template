@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import Redis from 'ioredis';
-import crypto from 'node:crypto';
-import process from 'node:process';
+import * as crypto from 'crypto';
+import { convertToSeconds } from '../../common/utils/time.util';
 
 @Injectable()
 export class RefreshTokenProvider {
@@ -16,17 +16,17 @@ export class RefreshTokenProvider {
   }
 
   private _generate(): string {
-    const randomBytes = crypto.randomBytes(32).toString('hex');
-    const issuedAt = Date.now();
+    const randomBytes: string = crypto.randomBytes(32).toString('hex');
+    const issuedAt: number = Date.now();
 
     return `${randomBytes}${issuedAt}`;
   }
 
   private _store(userId: number, refreshToken: string): void {
     const key = `auth:user:${userId}:refresh_token:${refreshToken}`;
-    const ttl = process.env.AUTH_REFRESH_EXPIRES;
+    const ttl: string = process.env.AUTH_REFRESH_EXPIRES;
 
-    this.redisClient.set(key, 'true', 'EX', ttl);
+    this.redisClient.set(key, 'true', 'EX', convertToSeconds(ttl));
   }
 
   async validate(userId: number, refreshToken: string): Promise<boolean> {

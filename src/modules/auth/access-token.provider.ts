@@ -1,7 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import Redis from 'ioredis';
-import process from 'node:process';
 
 @Injectable()
 export class AccessTokenProvider {
@@ -23,11 +22,6 @@ export class AccessTokenProvider {
     };
 
     return this.jwtService.sign(payload, {
-      secret: process.env.AUTH_JWT_SECRET,
-      algorithm: 'HS256',
-      issuer: process.env.AUTH_JWT_ISSUER,
-      keyid: '1',
-      expiresIn: process.env.AUTH_ACCESS_EXPIRES,
       subject: userId.toString(),
     });
   }
