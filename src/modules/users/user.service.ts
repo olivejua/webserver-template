@@ -1,8 +1,8 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
-import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
+import { matchPassword } from '../../common/utils/password.util';
 
 @Injectable()
 export class UserService {
@@ -37,7 +37,10 @@ export class UserService {
       return null;
     }
 
-    const isPasswordCorrect: boolean = await bcrypt.compare(password, user.password);
+    const isPasswordCorrect: boolean = await matchPassword(
+      password,
+      user.password,
+    );
 
     return isPasswordCorrect ? user : null;
   }

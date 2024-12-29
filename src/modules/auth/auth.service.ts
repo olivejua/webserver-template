@@ -1,32 +1,37 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { UserService } from '../users/user.service';
 import { SignupResponseDto } from './dto/signup.response.dto';
 import { SignupRequestDto } from './dto/signup.request.dto';
 import { SigninResponseDto } from './dto/signin.response.dto';
 import { SigninRequestDto } from './dto/signin.request.dto';
 import { User } from '../users/entities/user.entity';
-import * as bcrypt from 'bcrypt';
-import { JwtService } from '@nestjs/jwt';
-import * as crypto from 'node:crypto';
+import Redis from 'ioredis';
+import { AccessTokenProvider } from './access-token.provider';
+import { RefreshTokenProvider } from './refresh-token.provider';
+import { hashPassword } from '../../common/utils/password.util';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly userService: UserService,
-    private readonly jwtService: JwtService,
+    private readonly accessTokenProvider: AccessTokenProvider,
+    private readonly refreshTokenProvider: RefreshTokenProvider,
+    @Inject('REDIS_CLIENT') private readonly redisClient: Redis,
   ) {}
 
   async signup(request: SignupRequestDto): Promise<SignupResponseDto> {
     await this.userService.validateIfEmailIsUnique(request.email);
 
-    const encryptedPassword = await this._hashPassword(request.password);
+    const encryptedPassword: string = await hashPassword(request.password);
 
-    const savedUser = await this.userService.create(
+    const savedUser: User = await this.userService.create(
       request.email,
       encryptedPassword,
       request.name,
     );
-    //그 외 유저 초기화 (권한, 토큰버전 등)
+
+    this._storeUserInitialization(savedUser.id);
+
     return {
       id: savedUser.id,
       email: savedUser.email,
@@ -35,49 +40,32 @@ export class AuthService {
     };
   }
 
-  private async _hashPassword(password: string) {
-    const salt = await bcrypt.genSalt(12);
-    return await bcrypt.hash(password, salt);
+  private _storeUserInitialization(userId: number): void {
+    const initTokenVersion: number = 1;
+    const tokenVersionKey = `auth:user:${userId}:token_version`;
+    this.redisClient.set(tokenVersionKey, initTokenVersion.toString());
+
+    const permissions: string[] = [];
+    const permissionsKey = `auth:user:${userId}:permissions`;
+    this.redisClient.set(permissionsKey, permissions.join(','));
   }
 
   async signin(request: SigninRequestDto): Promise<SigninResponseDto> {
-    const user: User = await this.userService.findByEmailAndPassword(request.email, request.password);
+    const user: User = await this.userService.findByEmailAndPassword(
+      request.email,
+      request.password,
+    );
 
     if (!user) {
       throw new UnauthorizedException('Your email or password does not match.');
     }
 
-    const accessToken: string = this._generateAccessToken(user);
-    const refreshToken: string = this._generateRefreshToken();
+    const accessToken: string = await this.accessTokenProvider.issue(user.id);
+    const refreshToken: string = this.refreshTokenProvider.issue(user.id);
 
     return {
       accessToken,
       refreshToken,
     };
-  }
-
-  // issue
-  private _generateAccessToken(user: User): string {
-    // token version 찾아오기
-    const payload = {
-      tokenVersion: '1',
-    };
-
-    return this.jwtService.sign(payload, {
-      secret: process.env.AUTH_JWT_SECRET,
-      algorithm: 'HS256',
-      issuer: process.env.AUTH_JWT_ISSUER,
-      keyid: '1',
-      expiresIn: process.env.AUTH_ACCESS_EXPIRES,
-      subject: user.id.toString(),
-    });
-  }
-
-  // issue
-  private _generateRefreshToken(): string {
-    const randomBytes = crypto.randomBytes(32).toString('hex');
-    const issuedAt = Date.now();
-
-    return `${randomBytes}${issuedAt}`;
   }
 }
