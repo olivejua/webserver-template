@@ -16,6 +16,7 @@ $ npm install ioredis
 $ npm i -D @types/multer
 $ npm install @aws-sdk/client-s3 -> 클라우드 서버와 통신
 $ npm install @aws-sdk/s3-request-presigner -> url 생성
+$ npm install --save-dev jest @types/jest ts-jest @nestjs/testing
 ```
 
 - docker compose 세팅
