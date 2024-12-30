@@ -95,15 +95,8 @@ export class AuthService {
     };
   }
 
-  signout(accessToken: string, refreshToken: string): void {
-    //access token 블랙리스트에 올림, user id의 refresh 토큰 제거
-    //auth:blacklist:{} -> 만료기한은 토큰 만료기한
-    this._addBlacklist(accessToken);
-    this.refreshTokenProvider.revoke(refreshToken);
-  }
-
-  _addBlacklist(accessToken: string): void {
-    const key = `auth:blacklist:${accessToken}`;
-    this.redisClient.set(key, 'true', 'EX', accessToken);
+  signout(accessToken: string, userId: number): void {
+    this.accessTokenProvider.addBlacklist(accessToken);
+    this.refreshTokenProvider.revokeByUserId(userId);
   }
 }
