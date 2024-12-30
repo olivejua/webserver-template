@@ -3,6 +3,16 @@ import { JwtService } from '@nestjs/jwt';
 import Redis from 'ioredis';
 import { convertToSeconds } from '../../common/utils/time.util';
 
+const REDIS_KEYS = {
+  TOKEN_VERSION: (userId: number) => `auth:user:${userId}:token_version`,
+  TOKEN_BLACKLIST: (token: string) => `auth:blacklist:${token}`,
+};
+
+const ERROR_MESSAGES = {
+  TOKEN_REVOKED: 'Your token has been revoked. Please login again.',
+  INVALID_TOKEN: 'Invalid token.',
+};
+
 @Injectable()
 export class AccessTokenProvider {
   constructor(
@@ -10,16 +20,12 @@ export class AccessTokenProvider {
     @Inject('REDIS_CLIENT') private readonly redisClient: Redis,
   ) {}
 
+  /**
+   * 액세스 토큰 발급
+   */
   async issue(userId: number): Promise<string> {
-    const tokenVersion: number = await this._findTokenVersion(userId);
+    const tokenVersion: number = await this._getTokenVersion(userId);
     return this._generate(userId, tokenVersion);
-  }
-
-  private async _findTokenVersion(userId: number): Promise<number> {
-    const tokenVersionKey = `auth:user:${userId}:token_version`;
-    const tokenVersion = await this.redisClient.get(tokenVersionKey);
-
-    return tokenVersion ? Number(tokenVersion) : 1;
   }
 
   private _generate(userId: number, tokenVersion: number): string {
@@ -32,42 +38,70 @@ export class AccessTokenProvider {
     });
   }
 
+  /**
+   * 액세스 토큰 검증
+   */
   async verify(token: string): Promise<number> {
-    try {
-      const payload = this.jwtService.verify(token, {
-        secret: process.env.AUTH_JWT_SECRET,
-      });
+    const payload = this._verifyToken(token);
+    await this._validateTokenNotBlacklisted(token);
+    await this._validateTokenVersion(payload.sub, payload.tokenVersion);
 
-      const isBlacklisted: boolean = await this._isBlacklisted(token);
-      if (isBlacklisted) {
-        throw new UnauthorizedException(
-          'Your token has been revoked. Please login again.',
-        );
-      }
-
-      const userId: number = payload.sub;
-      const validTokenVersion = await this._findTokenVersion(userId);
-      if (payload.tokenVersion !== validTokenVersion) {
-        throw new UnauthorizedException(
-          'Your token has been revoked. Please login again.',
-        );
-      }
-
-      return payload.sub;
-    } catch (error) {
-      throw new UnauthorizedException('Invalid token.');
-    }
+    return payload.sub;
   }
 
+  /**
+   * 액세스 토큰 블랙리스트 추가
+   */
   addBlacklist(token: string): void {
-    const key: string = `auth:blacklist:${token}`;
+    const key = REDIS_KEYS.TOKEN_BLACKLIST(token);
     const ttl: number = convertToSeconds(process.env.AUTH_ACCESS_EXPIRES);
     this.redisClient.set(key, 'true', 'EX', ttl);
   }
 
-  private async _isBlacklisted(accessToken: string): Promise<boolean> {
-    const key = `auth:blacklist:${accessToken}`;
-    const exist: number = await this.redisClient.exists(key);
-    return exist === 1;
+  /**
+   * 토큰 검증
+   */
+  private _verifyToken(token: string): any {
+    try {
+      return this.jwtService.verify(token, {
+        secret: process.env.AUTH_JWT_SECRET,
+      });
+    } catch {
+      throw new UnauthorizedException(ERROR_MESSAGES.INVALID_TOKEN);
+    }
+  }
+
+  /**
+   * 토큰이 블랙리스트에 있는지 확인
+   */
+  private async _validateTokenNotBlacklisted(token: string): Promise<void> {
+    const key = REDIS_KEYS.TOKEN_BLACKLIST(token);
+    const isBlacklisted = await this.redisClient.exists(key);
+    if (isBlacklisted) {
+      throw new UnauthorizedException(ERROR_MESSAGES.TOKEN_REVOKED);
+    }
+  }
+
+  /**
+   * 토큰 버전 검증
+   */
+  private async _validateTokenVersion(
+    userId: number,
+    tokenVersion: number,
+  ): Promise<void> {
+    const validTokenVersion = await this._getTokenVersion(userId);
+    if (tokenVersion !== validTokenVersion) {
+      throw new UnauthorizedException(ERROR_MESSAGES.TOKEN_REVOKED);
+    }
+  }
+
+  /**
+   * 사용자 토큰 버전 조회
+   */
+  private async _getTokenVersion(userId: number): Promise<number> {
+    const tokenVersionKey = REDIS_KEYS.TOKEN_VERSION(userId);
+    const tokenVersion = await this.redisClient.get(tokenVersionKey);
+
+    return tokenVersion ? Number(tokenVersion) : 1;
   }
 }

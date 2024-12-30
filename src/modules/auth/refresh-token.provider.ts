@@ -3,20 +3,69 @@ import Redis from 'ioredis';
 import * as crypto from 'crypto';
 import { convertToSeconds } from '../../common/utils/time.util';
 
+const REDIS_KEYS = {
+  REFRESH_TOKEN: (userId: string, token: string) =>
+    `auth:user:${userId}:refresh_token:${token}`,
+  USER_REFRESH_PATTERN: (userId: string) =>
+    `auth:user:${userId}:refresh_token:*`,
+  ANY_USER_REFRESH_PATTERN: (token: string) =>
+    `auth:user:*:refresh_token:${token}`,
+};
+
+const ERROR_MESSAGES = {
+  INVALID_REFRESH_TOKEN: 'Invalid refresh token.',
+};
+
 @Injectable()
 export class RefreshTokenProvider {
   constructor(@Inject('REDIS_CLIENT') private readonly redisClient: Redis) {}
 
-  private readonly WHILE_CARD: string = '*';
-
+  /**
+   * 리프레시 토큰 발급
+   */
   issue(userId: number): string {
     const refreshToken: string = this._generate();
-
     this._store(userId, refreshToken);
-
     return refreshToken;
   }
 
+  /**
+   * 리프레시 토큰으로 사용자 ID 조회
+   */
+  async findUserIdByRefreshToken(refreshToken: string): Promise<number> {
+    const pattern = REDIS_KEYS.ANY_USER_REFRESH_PATTERN(refreshToken);
+    const keys = await this.redisClient.keys(pattern);
+
+    if (keys.length !== 1) {
+      return -1;
+    }
+
+    return Number(keys[0].split(':')[2]);
+  }
+
+  /**
+   * 리프레시 토큰 갱신
+   */
+  async renew(userId: number, refreshToken: string): Promise<string> {
+    await this._revokeByRefreshToken(refreshToken);
+    return this.issue(userId);
+  }
+
+  /**
+   * 특정 사용자 ID의 모든 리프레시 토큰 제거
+   */
+  async revokeByUserId(userId: number): Promise<void> {
+    const pattern = REDIS_KEYS.USER_REFRESH_PATTERN(userId.toString());
+
+    const keys = await this.redisClient.keys(pattern);
+    if (keys.length > 0) {
+      await this.redisClient.del(keys);
+    }
+  }
+
+  /**
+   * 리프레시 토큰 생성
+   */
   private _generate(): string {
     const randomBytes: string = crypto.randomBytes(32).toString('hex');
     const issuedAt: number = Date.now();
@@ -24,53 +73,26 @@ export class RefreshTokenProvider {
     return `${randomBytes}${issuedAt}`;
   }
 
-  private _store(userId: number, refreshToken: string): void {
-    const key = this._generateKeyOrPattern(userId.toString(), refreshToken);
+  /**
+   * 리프레시 토큰 저장
+   */
+  private async _store(userId: number, refreshToken: string): Promise<void> {
+    const key = REDIS_KEYS.REFRESH_TOKEN(userId.toString(), refreshToken);
     const ttl: string = process.env.AUTH_REFRESH_EXPIRES;
 
-    this.redisClient.set(key, 'true', 'EX', convertToSeconds(ttl));
+    await this.redisClient.set(key, 'true', 'EX', convertToSeconds(ttl));
   }
 
-  async findUserIdByRefreshToken(refreshToken: string): Promise<number> {
-    const pattern: string = this._generateKeyOrPattern(
-      this.WHILE_CARD,
-      refreshToken,
-    );
-    const keys: string[] = await this.redisClient.keys(pattern);
-
-    if (keys.length === 0 || keys.length > 1) {
-      return -1;
+  /**
+   * 리프레시 토큰 제거
+   */
+  private async _revokeByRefreshToken(refreshToken: string): Promise<void> {
+    const userId = await this.findUserIdByRefreshToken(refreshToken);
+    if (userId === -1) {
+      throw new Error(ERROR_MESSAGES.INVALID_REFRESH_TOKEN);
     }
 
-    return Number(keys[0].split(':')[2]);
-  }
-
-  async renew(userId: number, refreshToken: string): Promise<string> {
-    await this._revokeByRefreshToken(refreshToken);
-
-    return this.issue(userId);
-  }
-
-  private async _revokeByRefreshToken(refreshToken: string): Promise<void> {
-    const userId: number = await this.findUserIdByRefreshToken(refreshToken);
-    const key: string = this._generateKeyOrPattern(
-      userId.toString(),
-      refreshToken,
-    );
-    this.redisClient.del(key);
-  }
-
-  async revokeByUserId(userId: number): Promise<void> {
-    const pattern: string = this._generateKeyOrPattern(
-      userId.toString(),
-      this.WHILE_CARD,
-    );
-
-    const keys = await this.redisClient.keys(pattern);
-    this.redisClient.del(keys);
-  }
-
-  private _generateKeyOrPattern(userId: string, refreshToken: string): string {
-    return `auth:user:${userId}:refresh_token:${refreshToken}`;
+    const key = REDIS_KEYS.REFRESH_TOKEN(userId.toString(), refreshToken);
+    await this.redisClient.del(key);
   }
 }
