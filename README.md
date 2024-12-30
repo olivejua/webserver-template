@@ -13,6 +13,7 @@ $ npm install class-validator class-transformer
 $ npm install @nestjs/passport passport passport-local @nestjs/jwt bcrypt
 $ npm install --save-dev @types/bcrypt
 $ npm install ioredis
+$ npm i -D @types/multer
 ```
 
 - docker compose 세팅
