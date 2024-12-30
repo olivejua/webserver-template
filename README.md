@@ -14,6 +14,8 @@ $ npm install @nestjs/passport passport passport-local @nestjs/jwt bcrypt
 $ npm install --save-dev @types/bcrypt
 $ npm install ioredis
 $ npm i -D @types/multer
+$ npm install @aws-sdk/client-s3 -> 클라우드 서버와 통신
+$ npm install @aws-sdk/s3-request-presigner -> url 생성
 ```
 
 - docker compose 세팅
