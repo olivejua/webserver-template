@@ -9,6 +9,7 @@ import { RedisModule } from './modules/redis/redis.module';
 import { AuthJwtGuard } from './common/guards/auth-jwt.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { PostModule } from './modules/posts/post.module';
+import { FileModule } from './modules/files/file.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { PostModule } from './modules/posts/post.module';
     AuthModule,
     RedisModule,
     PostModule,
+    FileModule,
   ],
   controllers: [AppController],
   providers: [

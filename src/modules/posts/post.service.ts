@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Post } from './entities/post.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PostCreateRequestDto } from './dto/post-create.request.dto';
 import { PostTag } from './entities/post-tag.entity';
 import { PostImage } from './entities/post-image.entity';
+import { FileService } from '../files/file.service';
+import { FileUploadRequestDto } from '../files/file-upload.request.dto';
 
 @Injectable()
 export class PostService {
@@ -14,6 +16,7 @@ export class PostService {
     private readonly postTagRepository: Repository<PostTag>,
     @InjectRepository(PostImage)
     private readonly postImageRepository: Repository<PostImage>,
+    @Inject('FileService') private readonly fileService: FileService,
   ) {}
 
   async write(
@@ -55,15 +58,27 @@ export class PostService {
     }
 
     const pathPrefix: string = `/posts/${post.id}/images`;
+    const uploadRequests: FileUploadRequestDto[] = [];
     const entities: PostImage[] = [];
     for (const image of images) {
-      const path: string = `${pathPrefix}/${image.originalname}`;
-      const entity: PostImage = this.postImageRepository.create({ post, path });
+      const filenameParts: string[] = image.originalname.split('.');
+      const extension: string = filenameParts[filenameParts.length - 1];
+      const filename: string = `${pathPrefix}/${crypto.randomUUID()}.${extension}`;
+
+      const entity: PostImage = this.postImageRepository.create({
+        post: post,
+        path: filename,
+      });
+
+      uploadRequests.push({
+        file: image,
+        filename: filename,
+      });
+
       entities.push(entity);
     }
 
-    //cloud에  저장
-
+    await this.fileService.upload(uploadRequests);
     await this.postImageRepository.save(entities);
   }
 }

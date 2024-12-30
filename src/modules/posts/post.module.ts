@@ -5,9 +5,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Post } from './entities/post.entity';
 import { PostTag } from './entities/post-tag.entity';
 import { PostImage } from './entities/post-image.entity';
+import { FileModule } from '../files/file.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Post, PostTag, PostImage])],
+  imports: [TypeOrmModule.forFeature([Post, PostTag, PostImage]), FileModule],
   providers: [PostService],
   controllers: [PostController],
 })
