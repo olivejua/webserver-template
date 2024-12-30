@@ -15,6 +15,7 @@ import { AccessTokenProvider } from './access-token.provider';
 import { RefreshTokenProvider } from './refresh-token.provider';
 import { hashPassword } from '../../common/utils/password.util';
 import { RefreshResponseDto } from './dto/refresh.response.dto';
+import { RefreshRequestDto } from './dto/refresh.request.dto';
 
 @Injectable()
 export class AuthService {
@@ -75,9 +76,11 @@ export class AuthService {
     };
   }
 
-  async refresh(refreshToken: string): Promise<RefreshResponseDto> {
+  async refresh(request: RefreshRequestDto): Promise<RefreshResponseDto> {
     const userId: number =
-      await this.refreshTokenProvider.findUserIdByRefreshToken(refreshToken);
+      await this.refreshTokenProvider.findUserIdByRefreshToken(
+        request.refreshToken,
+      );
 
     if (userId === -1) {
       throw new ForbiddenException('Your refresh token is invalid.');
@@ -86,7 +89,7 @@ export class AuthService {
     const accessToken: string = await this.accessTokenProvider.issue(userId);
     const newRefreshToken: string = await this.refreshTokenProvider.renew(
       userId,
-      refreshToken,
+      request.refreshToken,
     );
 
     return {

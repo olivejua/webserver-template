@@ -8,6 +8,7 @@ import { RefreshResponseDto } from './dto/refresh.response.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { AuthenticatedUser } from '../../common/decorators/authenticated-user.decorator';
 import { removeBearerFromAuthorizationHeader } from '../../common/utils/http-header.util';
+import { RefreshRequestDto } from './dto/refresh.request.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -30,8 +31,8 @@ export class AuthController {
   @Public()
   @HttpCode(200)
   @Post('refresh')
-  refresh(@Body() refreshToken: string): Promise<RefreshResponseDto> {
-    return this.authService.refresh(refreshToken);
+  refresh(@Body() request: RefreshRequestDto): Promise<RefreshResponseDto> {
+    return this.authService.refresh(request);
   }
 
   @HttpCode(204)
