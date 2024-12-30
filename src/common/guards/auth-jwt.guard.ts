@@ -30,7 +30,10 @@ export class AuthJwtGuard implements CanActivate {
       );
     }
 
-    request.user = this.accessTokenProvider.verify(token);
+    const userId: number = await this.accessTokenProvider.verify(token);
+    request.user = {
+      id: userId,
+    };
 
     return true;
   }

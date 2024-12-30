@@ -38,9 +38,9 @@ export class AuthController {
   @Post('signout')
   signout(
     @Headers('authorization') authorization: string,
-    @AuthenticatedUser('id') userId: number,
+    @AuthenticatedUser() requestUser: any,
   ): void {
     const accessToken = removeBearerFromAuthorizationHeader(authorization);
-    this.authService.signout(accessToken, userId);
+    this.authService.signout(accessToken, requestUser.id);
   }
 }

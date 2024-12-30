@@ -1,7 +1,7 @@
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import Redis from 'ioredis';
-import { JwtPayloadDto } from './dto/jwt-payload.dto';
+import { convertToSeconds } from '../../common/utils/time.util';
 
 @Injectable()
 export class AccessTokenProvider {
@@ -11,10 +11,15 @@ export class AccessTokenProvider {
   ) {}
 
   async issue(userId: number): Promise<string> {
-    const tokenVersionKey = `auth:user:${userId}:token_version`;
-    const tokenVersion: string = await this.redisClient.get(tokenVersionKey);
+    const tokenVersion: number = await this._findTokenVersion(userId);
+    return this._generate(userId, tokenVersion);
+  }
 
-    return this._generate(userId, Number(tokenVersion));
+  private async _findTokenVersion(userId: number): Promise<number> {
+    const tokenVersionKey = `auth:user:${userId}:token_version`;
+    const tokenVersion = await this.redisClient.get(tokenVersionKey);
+
+    return tokenVersion ? Number(tokenVersion) : 1;
   }
 
   private _generate(userId: number, tokenVersion: number): string {
@@ -27,7 +32,7 @@ export class AccessTokenProvider {
     });
   }
 
-  async verify(token: string): Promise<JwtPayloadDto> {
+  async verify(token: string): Promise<number> {
     try {
       const payload = this.jwtService.verify(token, {
         secret: process.env.AUTH_JWT_SECRET,
@@ -40,20 +45,24 @@ export class AccessTokenProvider {
         );
       }
 
-      return {
-        sub: payload.sub,
-        tokenVersion: payload.tokenVersion,
-        exp: payload.exp,
-        iat: payload.iat,
-      };
+      const userId: number = payload.sub;
+      const validTokenVersion = await this._findTokenVersion(userId);
+      if (payload.tokenVersion !== validTokenVersion) {
+        throw new UnauthorizedException(
+          'Your token has been revoked. Please login again.',
+        );
+      }
+
+      return payload.sub;
     } catch (error) {
       throw new UnauthorizedException('Invalid token.');
     }
   }
 
   addBlacklist(token: string): void {
-    const key = `auth:blacklist:${token}`;
-    this.redisClient.set(key, 'true', 'EX', token);
+    const key: string = `auth:blacklist:${token}`;
+    const ttl: number = convertToSeconds(process.env.AUTH_ACCESS_EXPIRES);
+    this.redisClient.set(key, 'true', 'EX', ttl);
   }
 
   private async _isBlacklisted(accessToken: string): Promise<boolean> {
