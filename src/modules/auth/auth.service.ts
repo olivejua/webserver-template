@@ -1,4 +1,4 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { UserService } from '../users/user.service';
 import { SignupResponseDto } from './dto/signup.response.dto';
 import { SignupRequestDto } from './dto/signup.request.dto';
@@ -9,6 +9,7 @@ import Redis from 'ioredis';
 import { AccessTokenProvider } from './access-token.provider';
 import { RefreshTokenProvider } from './refresh-token.provider';
 import { hashPassword } from '../../common/utils/password.util';
+import { RefreshResponseDto } from './dto/refresh.response.dto';
 
 @Injectable()
 export class AuthService {
@@ -67,5 +68,37 @@ export class AuthService {
       accessToken,
       refreshToken,
     };
+  }
+
+  async refresh(refreshToken: string): Promise<RefreshResponseDto> {
+    const userId: number =
+      await this.refreshTokenProvider.findUserIdByRefreshToken(refreshToken);
+
+    if (userId === -1) {
+      throw new ForbiddenException('Your refresh token is invalid.');
+    }
+
+    const accessToken: string = await this.accessTokenProvider.issue(userId);
+    const newRefreshToken: string = await this.refreshTokenProvider.renew(
+      userId,
+      refreshToken,
+    );
+
+    return {
+      accessToken: accessToken,
+      refreshToken: newRefreshToken,
+    };
+  }
+
+  signout(accessToken: string, refreshToken: string): void {
+    //access token 블랙리스트에 올림, user id의 refresh 토큰 제거
+    //auth:blacklist:{} -> 만료기한은 토큰 만료기한
+    this._addBlacklist(accessToken);
+    this.refreshTokenProvider.revoke(refreshToken);
+  }
+
+  _addBlacklist(accessToken: string): void {
+    const key = `auth:blacklist:${accessToken}`;
+    this.redisClient.set(key, 'true', 'EX', accessToken);
   }
 }

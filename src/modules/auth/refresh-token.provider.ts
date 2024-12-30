@@ -23,16 +23,40 @@ export class RefreshTokenProvider {
   }
 
   private _store(userId: number, refreshToken: string): void {
-    const key = `auth:user:${userId}:refresh_token:${refreshToken}`;
+    const key = this._generateKey(userId, refreshToken);
     const ttl: string = process.env.AUTH_REFRESH_EXPIRES;
 
     this.redisClient.set(key, 'true', 'EX', convertToSeconds(ttl));
   }
 
-  async validate(userId: number, refreshToken: string): Promise<boolean> {
-    const key = `auth:user:${userId}:refresh_token:${refreshToken}`;
-    const exists = await this.redisClient.exists(key);
+  async findUserIdByRefreshToken(refreshToken: string): Promise<number> {
+    const pattern: string = this._pattern(refreshToken);
+    const keys: string[] = await this.redisClient.keys(pattern);
 
-    return exists === 1;
+    if (keys.length === 0 || keys.length > 1) {
+      return -1;
+    }
+
+    return Number(keys[0].split(':')[2]);
+  }
+
+  async renew(userId: number, refreshToken: string): Promise<string> {
+    await this.revoke(refreshToken);
+
+    return this.issue(userId);
+  }
+
+  async revoke(refreshToken: string): Promise<void> {
+    const userId: number = await this.findUserIdByRefreshToken(refreshToken);
+    const key: string = this._generateKey(userId, refreshToken);
+    this.redisClient.del(key);
+  }
+
+  _generateKey(userId: number, refreshToken: string): string {
+    return `auth:user:${userId}:refresh_token:${refreshToken}`;
+  }
+
+  _pattern(refreshToken: string): string {
+    return `auth:user:*:refresh_token:${refreshToken}`;
   }
 }
