@@ -20,4 +20,11 @@ export class PostTag {
     nullable: false,
   })
   name: string;
+
+  static of(post: Post, name: string) {
+    const postTag = new PostTag();
+    postTag.post = post;
+    postTag.name = name;
+    return postTag;
+  }
 }
