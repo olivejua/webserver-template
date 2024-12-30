@@ -17,4 +17,10 @@ export class Category {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+
+  static from(id: number): Category {
+    const category = new Category();
+    category.id = id;
+    return category;
+  }
 }

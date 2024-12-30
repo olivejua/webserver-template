@@ -40,14 +40,16 @@ create table posts (
     updated_at timestamp not null default current_timestamp
 );
 
+create index idx_category_id_created_at on posts (category_id, created_at desc);
+create index idx_created_at on posts (created_at desc);
+
 create table post_tags (
     id bigint auto_increment primary key ,
     post_id bigint not null,
     name varchar(30) not null
 );
 
-create index idx_post_id on post_tags (post_id);
-create index idx_name on post_tags (name);
+create index idx_post_id_name on post_tags (post_id, name);
 
 create table post_images (
     id bigint auto_increment primary key,

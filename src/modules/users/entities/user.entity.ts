@@ -33,11 +33,17 @@ export class User {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  static from(email: string, password: string, name: string) {
+  static of(email: string, password: string, name: string) {
     const user = new User();
     user.email = email;
     user.password = password;
     user.name = name;
+    return user;
+  }
+
+  static from(id: number): User {
+    const user = new User();
+    user.id = id;
     return user;
   }
 }
