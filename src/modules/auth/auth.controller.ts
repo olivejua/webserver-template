@@ -5,23 +5,27 @@ import { SigninResponseDto } from './dto/signin.response.dto';
 import { AuthService } from './auth.service';
 import { SignupResponseDto } from './dto/signup.response.dto';
 import { RefreshResponseDto } from './dto/refresh.response.dto';
+import { Public } from '../../common/decorators/public.decorator';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @HttpCode(201)
   @Post('signup')
   signup(@Body() request: SignupRequestDto): Promise<SignupResponseDto> {
     return this.authService.signup(request);
   }
 
+  @Public()
   @HttpCode(200)
   @Post('signin')
   signin(@Body() request: SigninRequestDto): Promise<SigninResponseDto> {
     return this.authService.signin(request);
   }
 
+  @Public()
   @HttpCode(200)
   @Post('refresh')
   refresh(@Body() refreshToken: string): Promise<RefreshResponseDto> {

@@ -1,4 +1,9 @@
-import { ForbiddenException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { UserService } from '../users/user.service';
 import { SignupResponseDto } from './dto/signup.response.dto';
 import { SignupRequestDto } from './dto/signup.request.dto';

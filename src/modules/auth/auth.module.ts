@@ -30,5 +30,6 @@ import { RedisModule } from '../redis/redis.module';
   ],
   providers: [AuthService, AccessTokenProvider, RefreshTokenProvider],
   controllers: [AuthController],
+  exports: [JwtModule],
 })
 export class AuthModule {}

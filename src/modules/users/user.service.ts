@@ -44,4 +44,8 @@ export class UserService {
 
     return isPasswordCorrect ? user : null;
   }
+
+  async findById(userId: number): Promise<User> {
+    return await this.userRepository.findOneBy({ id: userId });
+  }
 }

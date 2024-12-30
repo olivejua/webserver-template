@@ -73,7 +73,7 @@ src/
 │   │   ├── auth.module.ts
 │   │   ├── auth.controller.ts
 │   │   ├── auth.service.ts
-│   │   ├── auth.guard.ts
+│   │   ├── auth-jwt.guard.ts
 │   │   ├── jwt.strategy.ts
 ├── common/         # 공통 유틸리티 및 데코레이터
 │   ├── filters/    # 예외 필터
